@@ -68,7 +68,7 @@ jobs:
 # 第三个Job：发送通知（依赖于前面所有job）
   send-notification:
     if: contains(github.event.head_commit.message, '部署')
-    needs: [ydapi-deploy, exe-deploy]
+    needs: [deploy]
 
     runs-on: ubuntu-latest
     steps:
