@@ -166,7 +166,28 @@
         </div>
 
         <!-- 耗时显示控制 -->
-        <div class="flex justify-end mb-3">
+        <div class="flex justify-between items-center mb-3">
+          <div class="flex items-center gap-2">
+            <UButton
+              v-if="isAdmin && currentSchedule.timePoints.length > 0"
+              color="warning"
+              variant="soft"
+              size="sm"
+              icon="i-lucide-clock-arrow-up"
+              @click="openBatchTimeModal"
+            >
+              批量调整时间
+            </UButton>
+            <UButton
+              color="secondary"
+              variant="soft"
+              size="sm"
+              icon="i-lucide-download"
+              @click="exportSchedule"
+            >
+              导出配置
+            </UButton>
+          </div>
           <UButton
             variant="ghost"
             size="sm"
@@ -186,8 +207,29 @@
               :class="{ 'bg-pink-50/30': index % 2 === 0 }"
             >
               <!-- 时间 -->
-              <div class="text-lg font-bold text-pink-600 min-w-[70px]">
-                {{ point.time }}
+              <div class="flex flex-col items-center gap-1">
+                <div class="text-lg font-bold text-pink-600 min-w-[70px] text-center">
+                  {{ point.time }}
+                </div>
+                <!-- 快捷调整时间按钮 -->
+                <div v-if="isAdmin" class="flex gap-0.5">
+                  <UButton
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    icon="i-lucide-minus"
+                    class="px-1 min-w-[24px]"
+                    @click="adjustTime(point, -5)"
+                  />
+                  <UButton
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    icon="i-lucide-plus"
+                    class="px-1 min-w-[24px]"
+                    @click="adjustTime(point, 5)"
+                  />
+                </div>
               </div>
 
               <!-- 事项 -->
@@ -312,6 +354,48 @@
         </div>
       </template>
     </UModal>
+
+    <!-- 批量调整时间对话框 -->
+    <UModal v-model:open="showBatchTimeModal" title="批量调整时间">
+      <template #body>
+        <p class="text-sm text-gray-600 mb-4">
+          将所有事项时间统一提前或延后
+        </p>
+        <UFormField label="调整分钟数" class="mb-3">
+          <div class="flex items-center gap-3">
+            <UButton
+              color="error"
+              variant="soft"
+              @click="batchTimeAdjust = Math.max(-1440, batchTimeAdjust - 5)"
+            >
+              -5分钟
+            </UButton>
+            <UInput
+              v-model="batchTimeAdjust"
+              type="number"
+              class="w-24 text-center"
+            />
+            <UButton
+              color="success"
+              variant="soft"
+              @click="batchTimeAdjust = Math.min(1440, batchTimeAdjust + 5)"
+            >
+              +5分钟
+            </UButton>
+          </div>
+        </UFormField>
+        <p class="text-xs text-gray-500">
+          正数表示延后，负数表示提前
+        </p>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton variant="ghost" @click="showBatchTimeModal = false">取消</UButton>
+          <UButton color="warning" @click="applyBatchTimeAdjust">应用调整</UButton>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
@@ -350,6 +434,8 @@ useHead({
 const schedules = ref<WeddingDaySchedule[]>([])
 const weddingDate = ref<string>('')
 const currentDate = ref<string>('')
+const showBatchTimeModal = ref(false)
+const batchTimeAdjust = ref(0)
 const showIntervals = ref(true)
 const showEditModal = ref(false)
 const editingPoint = ref<Partial<TimePoint>>({})
@@ -711,6 +797,171 @@ function calculateInterval(time1: string, time2: string): string {
   } else {
     return `${mins}分钟`
   }
+}
+
+// 调整单个事项时间
+async function adjustTime(point: TimePoint, minutes: number) {
+  if (!currentDate.value) return
+
+  const [hour, minute] = point.time.split(':').map(Number)
+  const totalMinutes = (hour ?? 0) * 60 + (minute ?? 0) + minutes
+
+  // 确保时间在 00:00 - 23:59 范围内
+  if (totalMinutes < 0 || totalMinutes >= 24 * 60) {
+    toast.add({
+      title: '时间超出范围',
+      description: '时间必须在 00:00 - 23:59 之间',
+      color: 'warning'
+    })
+    return
+  }
+
+  const newHour = Math.floor(totalMinutes / 60)
+  const newMinute = totalMinutes % 60
+  const newTimeStr = `${String(newHour).padStart(2, '0')}:${String(newMinute).padStart(2, '0')}`
+
+  try {
+    const response = await $fetch<ApiResponse<WeddingSchedule>>(`/api/schedule/date/${currentDate.value}/timepoint/${point.id}`, {
+      method: 'PUT',
+      body: {
+        ...point,
+        time: newTimeStr,
+        url: ossUrl.value
+      }
+    })
+
+    if (response.success && response.data) {
+      schedules.value = response.data.schedules
+      toast.add({
+        title: '时间调整成功',
+        description: `${point.event}: ${point.time} → ${newTimeStr}`,
+        color: 'success'
+      })
+    } else {
+      toast.add({
+        title: response.error || '调整失败',
+        color: 'error'
+      })
+    }
+  } catch (error) {
+    toast.add({
+      title: '调整失败',
+      color: 'error'
+    })
+  }
+}
+
+// 打开批量调整时间对话框
+function openBatchTimeModal() {
+  batchTimeAdjust.value = 0
+  showBatchTimeModal.value = true
+}
+
+// 应用批量时间调整
+async function applyBatchTimeAdjust() {
+  if (!currentDate.value || !currentSchedule.value || batchTimeAdjust.value === 0) {
+    showBatchTimeModal.value = false
+    return
+  }
+
+  const adjustMinutes = batchTimeAdjust.value
+  const timePoints = currentSchedule.value.timePoints
+
+  // 检查所有时间是否在有效范围内
+  for (const point of timePoints) {
+    const [hour, minute] = point.time.split(':').map(Number)
+    const totalMinutes = (hour ?? 0) * 60 + (minute ?? 0) + adjustMinutes
+    if (totalMinutes < 0 || totalMinutes >= 24 * 60) {
+      toast.add({
+        title: '时间超出范围',
+        description: `${point.event} 调整后时间超出 00:00 - 23:59 范围`,
+        color: 'error'
+      })
+      return
+    }
+  }
+
+  // 依次更新所有时间点
+  let successCount = 0
+  for (const point of timePoints) {
+    const [hour, minute] = point.time.split(':').map(Number)
+    const totalMinutes = (hour ?? 0) * 60 + (minute ?? 0) + adjustMinutes
+    const newHour = Math.floor(totalMinutes / 60)
+    const newMinute = totalMinutes % 60
+    const newTimeStr = `${String(newHour).padStart(2, '0')}:${String(newMinute).padStart(2, '0')}`
+
+    try {
+      const response = await $fetch<ApiResponse<WeddingSchedule>>(`/api/schedule/date/${currentDate.value}/timepoint/${point.id}`, {
+        method: 'PUT',
+        body: {
+          ...point,
+          time: newTimeStr,
+          url: ossUrl.value
+        }
+      })
+
+      if (response.success) {
+        successCount++
+      }
+    } catch (error) {
+      console.error(`更新 ${point.event} 失败:`, error)
+    }
+  }
+
+  // 重新加载数据
+  await loadData()
+  showBatchTimeModal.value = false
+
+  if (successCount === timePoints.length) {
+    toast.add({
+      title: '批量调整成功',
+      description: `已调整 ${successCount} 个事项的时间`,
+      color: 'success'
+    })
+  } else {
+    toast.add({
+      title: '部分调整成功',
+      description: `成功 ${successCount}/${timePoints.length} 个`,
+      color: 'warning'
+    })
+  }
+}
+
+// 导出配置
+function exportSchedule() {
+  if (!currentSchedule.value) return
+
+  const exportData = {
+    date: currentDate.value,
+    exportTime: new Date().toISOString(),
+    timePoints: currentSchedule.value.timePoints.map(point => ({
+      time: point.time,
+      event: point.event,
+      note: point.note || ''
+    }))
+  }
+
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+
+  // 生成文件名：婚礼时间表_2025-05-20_14-30-00.json
+  const now = new Date()
+  const dateStr = currentDate.value
+  const timeStr = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`
+  link.download = `婚礼时间表_${dateStr}_${timeStr}.json`
+
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+
+  toast.add({
+    title: '导出成功',
+    description: `已导出 ${currentSchedule.value.timePoints.length} 个事项`,
+    color: 'success'
+  })
 }
 
 // 初始化
