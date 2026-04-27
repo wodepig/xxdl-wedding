@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>婚礼时间表</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    :root {
+      --primary-gradient: linear-gradient(135deg, #ff6b9d 0%, #c44569 50%, #f8b500 100%);
+      --glass-bg: rgba(255, 255, 255, 0.85);
+      --glass-border: rgba(255, 255, 255, 0.3);
+    }
+    
+    * {
+      font-family: 'Noto Sans SC', sans-serif;
+    }
+    
+    h1, h2, h3, .title-font {
+      font-family: 'Noto Serif SC', serif;
+    }
+    
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #ffd89b 100%);
+      background-attachment: fixed;
+      min-height: 100vh;
+    }
+    
+    .glass-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    
+    .hero-gradient {
+      background: var(--primary-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .btn-gradient {
+      background: var(--primary-gradient);
+      border: none;
+      color: white;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-gradient:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(196, 69, 105, 0.4);
+    }
+    
+    .date-tab {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .date-tab::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      transition: left 0.5s;
+    }
+    
+    .date-tab:hover::before {
+      left: 100%;
+    }
+    
+    .date-tab.active {
+      background: var(--primary-gradient);
+      color: white;
+      border-color: transparent;
+    }
+    
+    .timeline-item {
+      animation: slideIn 0.4s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    
+    .floating-hearts {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+    
+    .heart {
+      position: absolute;
+      font-size: 20px;
+      animation: float 15s infinite;
+      opacity: 0.3;
+    }
+    
+    @keyframes float {
+      0%, 100% {
+        transform: translateY(100vh) rotate(0deg);
+        opacity: 0;
+      }
+      10% {
+        opacity: 0.3;
+      }
+      90% {
+        opacity: 0.3;
+      }
+      100% {
+        transform: translateY(-100vh) rotate(720deg);
+        opacity: 0;
+      }
+    }
+    
+    .input-glow:focus {
+      box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.2);
+      border-color: #ff6b9d;
+    }
+    
+    .countdown-number {
+      background: var(--primary-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-weight: 700;
+    }
+    
+    .section-title {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .section-title::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: var(--primary-gradient);
+      border-radius: 2px;
+    }
+    
+    .tool-card {
+      background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%);
+      border: 1px solid rgba(255,255,255,0.5);
+    }
+    
+    .status-badge {
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.7;
+      }
+    }
+    
+    .modal-box {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+    }
+    
+    /* 美化时间选择器 */
+    .time-picker-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    
+    .time-picker-wrapper input[type="time"] {
+      appearance: none;
+      -webkit-appearance: none;
+      padding-right: 40px;
+      cursor: pointer;
+    }
+    
+    .time-picker-wrapper input[type="time"]::-webkit-calendar-picker-indicator {
+      position: absolute;
+      right: 8px;
+      width: 24px;
+      height: 24px;
+      opacity: 0;
+      cursor: pointer;
+    }
+    
+    .time-picker-icon {
+      position: absolute;
+      right: 12px;
+      pointer-events: none;
+      color: #ff6b9d;
+      font-size: 1.2rem;
+    }
+    
+    .time-display {
+      background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    
+    /* 自定义时间选择器弹窗样式 */
+    input[type="time"]:focus {
+      box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.2);
+      border-color: #ff6b9d;
+    }
+    
+    /* 截图按钮样式 */
+    .screenshot-btn {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      z-index: 50;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      transition: all 0.3s ease;
+      font-weight: 500;
+    }
+    
+    .screenshot-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+    
+    .screenshot-btn:active {
+      transform: translateY(0);
+    }
+    
+    /* 截图加载遮罩 */
+    .screenshot-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      backdrop-filter: blur(5px);
+    }
+    
+    .screenshot-loading {
+      background: white;
+      padding: 30px 40px;
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+    
+    .screenshot-loading .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #ff6b9d;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <!-- 浮动爱心背景 -->
+  <div class="floating-hearts" id="floatingHearts"></div>
+
+  <div id="app" class="container mx-auto p-4 max-w-5xl relative z-10">
+    <!-- 标题 -->
+    <div class="text-center mb-10 pt-8">
+      <div class="mb-4">
+        <span class="text-6xl">💒</span>
+      </div>
+      <h1 id="pageTitle" class="text-5xl font-bold hero-gradient mb-3 title-font tracking-wide">
+        婚礼时间表
+      </h1>
+      <p id="pageSubtitle" class="text-lg text-gray-600 font-light">
+        规划您的完美婚礼日程
+      </p>
+      <div class="mt-4 flex justify-center gap-2">
+        <span class="text-2xl">💕</span>
+        <span class="text-2xl">💍</span>
+        <span class="text-2xl">🥂</span>
+      </div>
+    </div>
+
+    <!-- OSS URL 设置面板 -->
+    <div class="glass-card rounded-3xl mb-8 overflow-hidden" id="ossConfigPanel">
+      <div class="bg-gradient-to-r from-pink-500/10 to-purple-500/10 p-6 border-b border-white/20">
+        <h2 class="card-title text-2xl text-gray-800 title-font flex items-center gap-3">
+          <span class="text-3xl">☁️</span>
+          <span>云端存储配置</span>
+        </h2>
+      </div>
+      <div class="p-6">
+        <div class="space-y-5">
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text text-gray-700 font-medium text-lg">OSS JSON 文件 URL</span>
+              <span class="badge badge-error badge-sm">必填</span>
+            </label>
+            <div class="relative">
+              <input 
+                type="url" 
+                id="ossUrlInput" 
+                value="https://lsky-ezrpa.oss-cn-qingdao.aliyuncs.com/weeding/time/config.json"
+                placeholder="https://your-bucket.oss-cn-region.aliyuncs.com/wedding/config.json" 
+                class="input input-bordered w-full pl-12 py-6 text-base input-glow bg-white/80"
+              />
+              <span class="absolute left-4 top-1/2 -translate-y-1/2 text-2xl">🔗</span>
+            </div>
+            <label class="label">
+              <span class="label-text-alt text-gray-500">输入阿里云OSS上JSON文件的完整URL地址</span>
+            </label>
+          </div>
+          
+          <!-- 自动连接选项 -->
+          <div class="flex items-center gap-4 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl border border-pink-100">
+            <label class="label cursor-pointer flex items-center gap-4 flex-1 mb-0">
+              <input 
+                type="checkbox" 
+                id="autoConnectCheckbox" 
+                class="checkbox checkbox-primary checkbox-lg" 
+                checked
+                onchange="toggleAutoConnect()"
+              />
+              <div>
+                <span class="label-text text-gray-800 font-medium text-lg block">下次自动连接</span>
+                <span class="label-text-alt text-gray-500 text-sm">开启后下次打开页面将自动使用此URL连接</span>
+              </div>
+            </label>
+          </div>
+          
+          <div class="flex gap-3 pt-2">
+            <button onclick="connectOss()" class="btn btn-gradient flex-1 py-6 text-lg font-medium rounded-2xl">
+              <span id="connectBtnText">连接并加载数据</span>
+              <span id="connectBtnLoading" class="loading loading-spinner loading-md hidden ml-2"></span>
+            </button>
+            <button onclick="toggleOssHelp()" class="btn btn-outline btn-lg px-6 rounded-2xl border-2 hover:bg-pink-50">
+              <span class="text-xl">❓</span>
+            </button>
+          </div>
+        </div>
+        
+        <!-- 帮助信息 -->
+        <div id="ossHelp" class="hidden mt-6 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
+          <h3 class="font-semibold mb-4 text-lg text-gray-800 flex items-center gap-2">
+            <span>📖</span> 如何获取OSS URL？
+          </h3>
+          <ol class="list-decimal list-inside space-y-3 text-gray-600">
+            <li class="flex items-start gap-2">
+              <span class="font-medium text-pink-600">1.</span>
+              <span>登录阿里云控制台，进入OSS服务</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="font-medium text-pink-600">2.</span>
+              <span>创建或选择一个Bucket</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="font-medium text-pink-600">3.</span>
+              <span>上传config.json文件，或获取已有文件的URL</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="font-medium text-pink-600">4.</span>
+              <span>设置Bucket的读写权限（需要允许公共读写或配置CORS）</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="font-medium text-pink-600">5.</span>
+              <span>复制文件的URL地址粘贴到上方</span>
+            </li>
+          </ol>
+          <div class="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-200 flex items-start gap-3">
+            <span class="text-2xl">⚠️</span>
+            <div>
+              <strong class="text-amber-800">注意：</strong>
+              <span class="text-amber-700">OSS Bucket需要配置CORS规则，允许您的域名访问。</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 主内容区域（初始隐藏） -->
+    <div id="mainContent" class="hidden space-y-6">
+      <!-- 当前OSS连接信息 -->
+      <div class="glass-card rounded-2xl p-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <div class="w-3 h-3 bg-green-500 rounded-full status-badge"></div>
+            <span class="text-gray-600 font-medium">已连接到云端</span>
+            <span id="currentOssUrl" class="text-sm font-mono bg-gray-100 px-3 py-1.5 rounded-lg text-gray-600 truncate max-w-xs"></span>
+          </div>
+          <button onclick="disconnectOss()" class="btn btn-ghost btn-sm text-error hover:bg-red-50 gap-2">
+            <span>断开连接</span>
+            <span>🔌</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 日期Tab管理 -->
+      <div class="glass-card rounded-3xl overflow-hidden">
+        <div class="bg-gradient-to-r from-pink-500/10 to-purple-500/10 p-5 border-b border-white/20">
+          <h2 class="card-title text-xl text-gray-800 title-font flex items-center gap-2">
+            <span class="text-2xl">📅</span>
+            <span>选择日期</span>
+          </h2>
+        </div>
+        <div class="p-6">
+          <div class="flex flex-wrap gap-3 mb-6" id="dateTabs">
+            <!-- 日期Tab会在这里动态生成 -->
+          </div>
+          <div class="flex gap-3 items-end">
+            <div class="form-control flex-1">
+              <label class="label">
+                <span class="label-text text-gray-600">添加新日期</span>
+              </label>
+              <input type="date" id="newDateInput" class="input input-bordered bg-white/80 input-glow" />
+            </div>
+            <button onclick="addDate()" class="btn btn-gradient px-8 rounded-xl">
+              <span class="text-xl mr-2">+</span>
+              <span>添加</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 当前日期的时间安排 -->
+      <div class="glass-card rounded-3xl overflow-hidden">
+        <div class="bg-gradient-to-r from-pink-500/10 to-purple-500/10 p-5 border-b border-white/20">
+          <h2 class="card-title text-2xl text-gray-800 title-font section-title" id="currentDateTitle">
+            请选择或添加日期
+          </h2>
+        </div>
+        <div class="p-6">
+          <!-- 添加时间点表单 -->
+          <div id="addTimeForm" class="hidden">
+            <div class="bg-gradient-to-br from-pink-50 to-purple-50 rounded-2xl p-6 mb-6 border border-pink-100">
+              <h3 class="text-lg font-medium text-gray-700 mb-4 flex items-center gap-2">
+                <span>➕</span> 添加新安排
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                <div class="md:col-span-2">
+                  <label class="label text-gray-600 flex items-center gap-2">
+                    <span>🕐</span> 时间
+                  </label>
+                  <div class="time-picker-wrapper">
+                    <input type="time" id="timeInput" class="input input-bordered w-full bg-white/80 input-glow time-display text-center" />
+                    <span class="time-picker-icon">⏰</span>
+                  </div>
+                </div>
+                <div class="md:col-span-5">
+                  <label class="label text-gray-600">事项</label>
+                  <input type="text" id="eventInput" placeholder="例如：新娘化妆" class="input input-bordered w-full bg-white/80 input-glow" />
+                </div>
+                <div class="md:col-span-4">
+                  <label class="label text-gray-600">备注说明</label>
+                  <input type="text" id="noteInput" placeholder="详细说明..." class="input input-bordered w-full bg-white/80 input-glow" />
+                </div>
+                <div class="md:col-span-1 flex items-end">
+                  <button onclick="addTimePoint()" class="btn btn-success w-full rounded-xl bg-gradient-to-r from-green-400 to-green-500 border-none text-white hover:shadow-lg hover:shadow-green-500/30 transition-all">
+                    <span>✓</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 耗时显示控制按钮 -->
+          <div class="flex justify-end mb-4">
+            <button onclick="toggleAllIntervals()" id="toggleIntervalsBtn" class="btn btn-sm btn-outline rounded-xl border-2 hover:bg-pink-50 hover:border-pink-300 hover:text-pink-600 transition-all flex items-center gap-2">
+              <span id="toggleIntervalsIcon">👁️</span>
+              <span id="toggleIntervalsText">隐藏耗时</span>
+            </button>
+          </div>
+
+          <!-- 时间点列表 -->
+          <div id="timeList" class="space-y-3">
+            <!-- 时间点会在这里动态生成 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 时间日期计算工具 -->
+      <div class="glass-card rounded-3xl overflow-hidden">
+        <div class="bg-gradient-to-r from-pink-500/10 to-purple-500/10 p-5 border-b border-white/20">
+          <h2 class="card-title text-xl text-gray-800 title-font flex items-center gap-2">
+            <span class="text-2xl">🕐</span>
+            <span>时间日期计算工具</span>
+          </h2>
+        </div>
+        <div class="p-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- 时间计算器 -->
+            <div class="tool-card rounded-2xl p-6">
+              <h3 class="font-semibold mb-4 text-gray-700 flex items-center gap-2 text-lg">
+                <span class="text-2xl">⏰</span> 时间加减
+              </h3>
+              <div class="space-y-4">
+                <div>
+                  <label class="label text-gray-600">基准时间</label>
+                  <input type="datetime-local" id="baseTime" class="input input-bordered w-full bg-white/80 input-glow" />
+                </div>
+                <div class="flex gap-3">
+                  <input type="number" id="timeAmount" placeholder="数值" class="input input-bordered w-28 bg-white/80 input-glow" />
+                  <select id="timeUnit" class="select select-bordered flex-1 bg-white/80">
+                    <option value="minutes">分钟</option>
+                    <option value="hours">小时</option>
+                    <option value="days">天</option>
+                  </select>
+                </div>
+                <div class="flex gap-3">
+                  <button onclick="calculateTime('add')" class="btn btn-primary flex-1 rounded-xl bg-gradient-to-r from-blue-400 to-blue-500 border-none hover:shadow-lg hover:shadow-blue-500/30">
+                    <span class="mr-1">+</span> 增加
+                  </button>
+                  <button onclick="calculateTime('subtract')" class="btn btn-secondary flex-1 rounded-xl bg-gradient-to-r from-orange-400 to-orange-500 border-none hover:shadow-lg hover:shadow-orange-500/30">
+                    <span class="mr-1">-</span> 减少
+                  </button>
+                </div>
+                <div id="timeResult" class="alert alert-info hidden rounded-xl bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200">
+                  <div class="flex-1">
+                    <span id="timeResultText" class="text-blue-800 font-medium block mb-2"></span>
+                    <button onclick="applyCalculatedTime()" id="applyTimeBtn" class="btn btn-sm btn-primary bg-gradient-to-r from-pink-400 to-pink-500 border-none text-white hover:shadow-lg">
+                      <span class="mr-1">➡️</span> 应用到新安排
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 日期间隔计算器 -->
+            <div class="tool-card rounded-2xl p-6">
+              <h3 class="font-semibold mb-4 text-gray-700 flex items-center gap-2 text-lg">
+                <span class="text-2xl">📊</span> 日期间隔
+              </h3>
+              <div class="space-y-4">
+                <div>
+                  <label class="label text-gray-600">开始日期</label>
+                  <input type="date" id="startDate" class="input input-bordered w-full bg-white/80 input-glow" />
+                </div>
+                <div>
+                  <label class="label text-gray-600">结束日期</label>
+                  <input type="date" id="endDate" class="input input-bordered w-full bg-white/80 input-glow" />
+                </div>
+                <button onclick="calculateDateDiff()" class="btn btn-primary w-full rounded-xl bg-gradient-to-r from-purple-400 to-purple-500 border-none hover:shadow-lg hover:shadow-purple-500/30">
+                  <span class="mr-2">🧮</span> 计算间隔
+                </button>
+                <div id="dateResult" class="alert alert-info hidden rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
+                  <span id="dateResultText" class="text-purple-800 font-medium"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 倒计时 -->
+      <div class="glass-card rounded-3xl overflow-hidden text-center relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-r from-pink-500/5 to-purple-500/5"></div>
+        <div class="p-8 relative">
+          <h2 class="card-title text-2xl justify-center mb-4 text-gray-700 title-font">
+            <span class="text-3xl mr-3">💕</span>
+            <span>婚礼倒计时</span>
+          </h2>
+          <div id="countdown" class="text-5xl countdown-number title-font py-4">
+            请先添加婚礼日期
+          </div>
+          <div class="mt-4 flex justify-center gap-4 text-4xl">
+            <span>🌸</span>
+            <span>💐</span>
+            <span>🌹</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 保存状态提示 -->
+    <div id="saveStatus" class="fixed bottom-6 right-6 hidden z-50">
+      <div class="alert alert-success rounded-2xl shadow-2xl bg-gradient-to-r from-green-400 to-emerald-500 text-white border-none px-6 py-4">
+        <span class="text-xl mr-2">✓</span>
+        <span class="font-medium">已保存到云端</span>
+      </div>
+    </div>
+
+    <!-- 错误提示 -->
+    <div id="errorStatus" class="fixed bottom-6 right-6 hidden z-50">
+      <div class="alert alert-error rounded-2xl shadow-2xl bg-gradient-to-r from-red-400 to-pink-500 text-white border-none px-6 py-4">
+        <span class="text-xl mr-2">✕</span>
+        <span id="errorText" class="font-medium"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑模态框 -->
+  <dialog id="editModal" class="modal">
+    <div class="modal-box rounded-3xl max-w-lg">
+      <h3 class="font-bold text-2xl mb-6 text-gray-800 title-font flex items-center gap-3">
+        <span class="text-3xl">✏️</span>
+        <span>编辑时间点</span>
+      </h3>
+      <div class="space-y-5">
+        <div>
+          <label class="label text-gray-600 font-medium flex items-center gap-2">
+            <span>🕐</span> 时间
+          </label>
+          <div class="time-picker-wrapper">
+            <input type="time" id="editTime" class="input input-bordered w-full bg-gray-50 input-glow time-display text-center" />
+            <span class="time-picker-icon">⏰</span>
+          </div>
+        </div>
+        <div>
+          <label class="label text-gray-600 font-medium">事项</label>
+          <input type="text" id="editEvent" class="input input-bordered w-full bg-gray-50 input-glow" />
+        </div>
+        <div>
+          <label class="label text-gray-600 font-2xl flex items-center gap-2">
+            <span>⏱️</span> 耗时
+          </label>
+          <div class="flex gap-3">
+            <input type="number" id="editDurationValue" placeholder="30" min="1" class="input input-bordered w-28 bg-gray-50 input-glow text-center" />
+            <select id="editDurationUnit" class="select select-bordered flex-1 bg-gray-50 input-glow">
+              <option value="minutes">分钟</option>
+              <option value="hours">小时</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="label text-gray-600 font-medium">备注</label>
+          <textarea id="editNote" class="textarea textarea-bordered w-full bg-gray-50 input-glow" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-action mt-8">
+        <button onclick="closeEditModal()" class="btn btn-ghost px-6">取消</button>
+        <button onclick="saveEdit()" class="btn btn-gradient px-8 rounded-xl">
+          <span class="mr-2">💾</span> 保存
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    // 生成浮动爱心
+    function createFloatingHearts() {
+      const container = document.getElementById('floatingHearts');
+      const hearts = ['💕', '💖', '💗', '💓', '💝', '🌸', '✨'];
+      
+      for (let i = 0; i < 15; i++) {
+        const heart = document.createElement('div');
+        heart.className = 'heart';
+        heart.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+        heart.style.left = Math.random() * 100 + '%';
+        heart.style.animationDelay = Math.random() * 15 + 's';
+        heart.style.animationDuration = (10 + Math.random() * 10) + 's';
+        container.appendChild(heart);
+      }
+    }
+    
+    // 页面加载时创建爱心
+    createFloatingHearts();
+    
+    // 截图功能
+    async function captureScreenshot() {
+      // 创建加载遮罩
+      const overlay = document.createElement('div');
+      overlay.className = 'screenshot-overlay';
+      overlay.innerHTML = `
+        <div class="screenshot-loading">
+          <div class="spinner"></div>
+          <p class="text-gray-600 font-medium">正在生成截图...</p>
+          <p class="text-gray-400 text-sm mt-2">请稍候</p>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      
+      try {
+        // 获取当前日期作为文件名
+        const date = new Date();
+        const dateStr = date.toISOString().slice(0, 10);
+        const timeStr = date.toTimeString().slice(0, 8).replace(/:/g, '-');
+        const fileName = `婚礼时间表_${dateStr}_${timeStr}.png`;
+        
+        // 临时替换 oklch 颜色为 rgba
+        const elements = document.querySelectorAll('*');
+        const originalStyles = [];
+        
+        elements.forEach((el, index) => {
+          const computedStyle = window.getComputedStyle(el);
+          const backgroundColor = computedStyle.backgroundColor;
+          const color = computedStyle.color;
+          
+          if (backgroundColor.includes('oklch') || color.includes('oklch')) {
+            originalStyles.push({
+              element: el,
+              index: index,
+              backgroundColor: el.style.backgroundColor,
+              color: el.style.color
+            });
+            // 设置一个兼容的颜色
+            if (backgroundColor.includes('oklch')) {
+              el.style.backgroundColor = '#ffffff';
+            }
+            if (color.includes('oklch')) {
+              el.style.color = '#333333';
+            }
+          }
+        });
+        
+        // 使用 html2canvas 截图
+        const canvas = await html2canvas(document.body, {
+          scale: 2, // 高清截图
+          useCORS: true, // 允许跨域
+          allowTaint: true,
+          backgroundColor: '#ffffff', // 设置白色背景
+          logging: false,
+          windowWidth: document.documentElement.scrollWidth,
+          windowHeight: document.documentElement.scrollHeight,
+          onclone: (clonedDoc) => {
+            // 在克隆的文档中移除浮动元素和按钮
+            const hearts = clonedDoc.querySelector('.floating-hearts');
+            const screenshotBtn = clonedDoc.querySelector('.screenshot-btn');
+            if (hearts) hearts.style.display = 'none';
+            if (screenshotBtn) screenshotBtn.style.display = 'none';
+          }
+        });
+        
+        // 恢复原始样式
+        originalStyles.forEach(item => {
+          item.element.style.backgroundColor = item.backgroundColor;
+          item.element.style.color = item.color;
+        });
+        
+        // 转换为图片并下载
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        
+        // 显示成功提示
+        showToast('截图已保存！', 'success');
+      } catch (error) {
+        console.error('截图失败:', error);
+        showToast('截图失败，请重试', 'error');
+      } finally {
+        // 移除加载遮罩
+        document.body.removeChild(overlay);
+      }
+    }
+    
+    // 显示提示消息
+    function showToast(message, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = `fixed top-6 right-6 z-50 px-6 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 transform translate-x-full`;
+      toast.style.background = type === 'success' 
+        ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
+        : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+      toast.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="text-xl">${type === 'success' ? '✓' : '✕'}</span>
+          <span>${message}</span>
+        </div>
+      `;
+      document.body.appendChild(toast);
+      
+      // 动画显示
+      setTimeout(() => {
+        toast.style.transform = 'translateX(0)';
+      }, 100);
+      
+      // 自动隐藏
+      setTimeout(() => {
+        toast.style.transform = 'translateX(150%)';
+        setTimeout(() => {
+          document.body.removeChild(toast);
+        }, 300);
+      }, 3000);
+    }
+  </script>
+  <script src="oss-storage.js"></script>
+  <script src="app.js"></script>
+  
+  <!-- 截图按钮 -->
+  <button onclick="captureScreenshot()" class="screenshot-btn" title="生成页面截图">
+    <span class="text-xl">📸</span>
+    <span class="ml-2">截图</span>
+  </button>
+</body>
+</html>
