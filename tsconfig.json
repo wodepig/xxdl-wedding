@@ -1,6 +1,9 @@
 {
   // https://nuxt.com/docs/guide/concepts/typescript
   "files": [],
+  "compilerOptions": {
+    "lib": ["ESNext", "DOM", "DOM.Iterable"]
+  },
   "references": [
     {
       "path": "./.nuxt/tsconfig.app.json"
