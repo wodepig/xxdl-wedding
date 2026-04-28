@@ -38,7 +38,7 @@
             <UFormField label="存储URL">
               <UInput
                 v-model="urls.schedule"
-                placeholder="https://your-bucket.oss-cn-hangzhou.aliyuncs.com/wedding/时间表.json"
+                placeholder="https://lsky-ezrpa.oss-cn-qingdao.aliyuncs.com/weeding/time/config.json"
                 icon="i-lucide-link"
                 class="w-full"
               />
@@ -56,7 +56,7 @@
             <UFormField label="存储URL">
               <UInput
                 v-model="urls.seating"
-                placeholder="https://your-bucket.oss-cn-hangzhou.aliyuncs.com/wedding/坐席.json"
+                placeholder="https://lsky-ezrpa.oss-cn-qingdao.aliyuncs.com/weeding/坐席.json"
                 icon="i-lucide-link"
                 class="w-full"
               />
@@ -92,7 +92,7 @@
             <UFormField label="存储URL">
               <UInput
                 v-model="urls.todo"
-                placeholder="https://your-bucket.oss-cn-hangzhou.aliyuncs.com/wedding/待办.json"
+                placeholder="https://lsky-ezrpa.oss-cn-qingdao.aliyuncs.com/weeding/todo.json"
                 icon="i-lucide-link"
                 class="w-full"
               />

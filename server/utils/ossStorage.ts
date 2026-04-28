@@ -26,7 +26,7 @@ export const DefaultOssUrls: Record<string, string> = {
   seating: 'https://lsky-ezrpa.oss-cn-qingdao.aliyuncs.com/weeding/坐席.json',
   person: 'https://lsky-ezrpa.oss-cn-qingdao.aliyuncs.com/weeding/person.json',
   budget: 'https://your-bucket.oss-cn-hangzhou.aliyuncs.com/wedding/预算.json',
-  todo: 'https://your-bucket.oss-cn-hangzhou.aliyuncs.com/wedding/待办.json'
+  todo: 'https://lsky-ezrpa.oss-cn-qingdao.aliyuncs.com/weeding/todo.json'
 }
 
 /**

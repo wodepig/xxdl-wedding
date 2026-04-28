@@ -102,7 +102,7 @@
       <div class="flex flex-col lg:flex-row gap-6">
         <!-- 左侧人员列表 -->
         <div class="lg:w-80 flex-shrink-0">
-          <PersonList
+          <SeatingPersonList
             ref="personListRef"
             :is-admin="isAdmin"
             @dragstart="onPersonDragStart"
@@ -509,7 +509,7 @@ const dragStartPos = ref({ x: 0, y: 0 })
 const dragStartMouse = ref({ x: 0, y: 0 })
 
 // 人员列表相关
-const personListRef = ref<InstanceType<typeof import('../../components/PersonList.vue').default> | null>(null)
+const personListRef = ref<InstanceType<typeof import('../../components/SeatingPersonList.vue').default> | null>(null)
 const draggingPerson = ref<Person | null>(null)
 const allPersons = ref<Person[]>([])
 
