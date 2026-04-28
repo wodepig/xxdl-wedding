@@ -438,7 +438,8 @@
         </UFormField>
         <div v-if="importPreview.tables.length > 0" class="mt-4">
           <p class="text-sm font-medium text-gray-700 mb-2">
-            预览: {{ importPreview.tables.length }} 桌，{{ importPreview.totalGuests }} 人
+            预览: {{ importPreview.tables.length }} 桌，{{ importPreview.totalGuests }} 位宾客
+            <span v-if="importPreview.persons.length > 0">，{{ importPreview.persons.length }} 位人员</span>
           </p>
         </div>
       </template>
@@ -494,7 +495,7 @@ const showImportModal = ref(false)
 const showClearConfirmModal = ref(false)
 const editingTable = ref<RoundTable | null>(null)
 const importFileInput = ref<HTMLInputElement | null>(null)
-const importPreview = ref<{ tables: RoundTable[]; totalGuests: number }>({ tables: [], totalGuests: 0 })
+const importPreview = ref<{ tables: RoundTable[]; totalGuests: number; persons: Person[] }>({ tables: [], totalGuests: 0, persons: [] })
 const ossUrl = ref<string>('')
 const loading = ref(false)
 
@@ -865,14 +866,22 @@ async function saveToStorage() {
   }
 }
 
-// 导出配置
+// 导出配置（包含坐席和人员配置）
 function exportSeating() {
-  const layout: SeatingLayout = {
-    tables: tables.value,
-    lastModified: new Date().toISOString()
+  const exportData = {
+    seating: {
+      tables: tables.value,
+      lastModified: new Date().toISOString()
+    },
+    persons: {
+      persons: allPersons.value,
+      lastModified: new Date().toISOString()
+    },
+    exportTime: new Date().toISOString(),
+    version: '1.0'
   }
 
-  const blob = new Blob([JSON.stringify(layout, null, 2)], { type: 'application/json' })
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
@@ -888,7 +897,7 @@ function exportSeating() {
 
   toast.add({
     title: '导出成功',
-    description: `已导出 ${tables.value.length} 桌，${totalGuests.value} 人`,
+    description: `已导出 ${tables.value.length} 桌，${allPersons.value.length} 人`,
     color: 'success'
   })
 }
@@ -908,7 +917,7 @@ function onImportFileChange(event: Event) {
   const file = target.files?.[0]
 
   if (!file) {
-    importPreview.value = { tables: [], totalGuests: 0 }
+    importPreview.value = { tables: [], totalGuests: 0, persons: [] }
     return
   }
 
@@ -916,14 +925,27 @@ function onImportFileChange(event: Event) {
   reader.onload = (e) => {
     try {
       const content = e.target?.result as string
-      const layout: SeatingLayout = JSON.parse(content)
+      const data = JSON.parse(content)
 
-      if (layout.tables && Array.isArray(layout.tables)) {
-        const totalGuests = layout.tables.reduce((sum, t) => sum + (t.guests?.length || 0), 0)
-        importPreview.value = { tables: layout.tables, totalGuests }
+      // 支持新格式（包含 seating 和 persons）和旧格式（只有 seating）
+      let tables: RoundTable[] = []
+      let persons: Person[] = []
+
+      if (data.seating && data.seating.tables) {
+        // 新格式
+        tables = data.seating.tables
+        persons = data.persons?.persons || []
+      } else if (data.tables && Array.isArray(data.tables)) {
+        // 旧格式（兼容）
+        tables = data.tables
+      }
+
+      if (tables.length > 0) {
+        const totalGuests = tables.reduce((sum: number, t: RoundTable) => sum + (t.guests?.length || 0), 0)
+        importPreview.value = { tables, totalGuests, persons }
         toast.add({
           title: '文件读取成功',
-          description: `找到 ${layout.tables.length} 桌，${totalGuests} 人`,
+          description: `找到 ${tables.length} 桌，${totalGuests} 人，${persons.length} 位人员`,
           color: 'success'
         })
       } else {
@@ -935,7 +957,7 @@ function onImportFileChange(event: Event) {
         description: '请确保上传的是有效的坐席配置文件',
         color: 'error'
       })
-      importPreview.value = { tables: [], totalGuests: 0 }
+      importPreview.value = { tables: [], totalGuests: 0, persons: [] }
     }
   }
   reader.readAsText(file)
@@ -943,13 +965,20 @@ function onImportFileChange(event: Event) {
 
 // 应用导入
 async function applyImport() {
+  const personsCount = importPreview.value.persons?.length || 0
   tables.value = JSON.parse(JSON.stringify(importPreview.value.tables))
+
+  // 如果有人员配置，也导入人员
+  if (personsCount > 0) {
+    await personListRef.value?.importPersons?.(importPreview.value.persons)
+  }
+
   await saveToStorage()
   showImportModal.value = false
-  importPreview.value = { tables: [], totalGuests: 0 }
+  importPreview.value = { tables: [], totalGuests: 0, persons: [] }
   toast.add({
     title: '导入成功',
-    description: `已导入 ${tables.value.length} 桌`,
+    description: `已导入 ${tables.value.length} 桌，${personsCount} 位人员`,
     color: 'success'
   })
 }

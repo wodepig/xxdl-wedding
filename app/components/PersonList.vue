@@ -388,11 +388,41 @@ async function assignPersonToTable(personId: string, tableId: string) {
   }
 }
 
+// 导入人员列表
+async function importPersons(newPersons: Person[]) {
+  if (!newPersons || newPersons.length === 0) return
+
+  // 合并人员列表，以新导入的为准（根据ID去重）
+  const existingIds = new Set(persons.value.map(p => p.id))
+  const personsToAdd = newPersons.filter(p => !existingIds.has(p.id))
+
+  // 更新已存在的人员信息
+  for (const newPerson of newPersons) {
+    const existingIndex = persons.value.findIndex(p => p.id === newPerson.id)
+    if (existingIndex >= 0) {
+      persons.value[existingIndex] = { ...newPerson }
+    }
+  }
+
+  // 添加新人员
+  persons.value.push(...personsToAdd)
+
+  await saveToOss()
+  emit('update', persons.value)
+
+  toast.add({
+    title: '人员导入成功',
+    description: `新增 ${personsToAdd.length} 人，更新 ${newPersons.length - personsToAdd.length} 人`,
+    color: 'success'
+  })
+}
+
 // 暴露方法给父组件
 defineExpose({
   loadData,
   assignPersonToTable,
   unassignPerson,
+  importPersons,
   persons
 })
 

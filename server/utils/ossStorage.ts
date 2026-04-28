@@ -24,6 +24,7 @@ export const FeatureFiles: Record<string, string> = {
 export const DefaultOssUrls: Record<string, string> = {
   schedule: 'https://lsky-ezrpa.oss-cn-qingdao.aliyuncs.com/weeding/time/config.json',
   seating: 'https://lsky-ezrpa.oss-cn-qingdao.aliyuncs.com/weeding/坐席.json',
+  person: 'https://lsky-ezrpa.oss-cn-qingdao.aliyuncs.com/weeding/person.json',
   budget: 'https://your-bucket.oss-cn-hangzhou.aliyuncs.com/wedding/预算.json',
   todo: 'https://your-bucket.oss-cn-hangzhou.aliyuncs.com/wedding/待办.json'
 }

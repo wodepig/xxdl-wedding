@@ -199,6 +199,15 @@
             </UButton>
           </div>
           <UButton
+            color="neutral"
+            variant="soft"
+            size="sm"
+            icon="i-lucide-copy"
+            @click="copyScheduleText"
+          >
+            复制当天流程
+          </UButton>
+          <UButton
             variant="ghost"
             size="sm"
             :icon="showIntervals ? 'i-lucide-eye-off' : 'i-lucide-eye'"
@@ -919,6 +928,66 @@ function calculateInterval(time1: string, time2: string): string {
   } else {
     return `${mins}分钟`
   }
+}
+
+function copyScheduleText() {
+  if (!currentSchedule.value || currentSchedule.value.timePoints.length === 0) {
+    toast.add({
+      title: '没有可复制的流程',
+      color: 'warning'
+    })
+    return
+  }
+
+  const lines: string[] = []
+  const points = currentSchedule.value.timePoints
+
+  // 添加标题
+  lines.push(`📅 ${formatDate(currentDate.value)} 婚礼流程`)
+  lines.push('')
+
+  for (let i = 0; i < points.length; i++) {
+    const point = points[i]
+    const nextPoint = points[i + 1]
+    const startTime = point.time
+    const endTime = nextPoint ? nextPoint.time : ''
+    const duration = nextPoint ? calculateInterval(point.time, nextPoint.time) : ''
+
+    // 事项序号
+    lines.push(`${i + 1}. ${point.event}`)
+
+    // 时间信息
+    if (endTime && duration) {
+      lines.push(`   ⏰ ${startTime} - ${endTime}（预计${duration}）`)
+    } else {
+      lines.push(`   ⏰ ${startTime} 开始`)
+    }
+
+    // 备注信息
+    if (point.note) {
+      lines.push(`   📝 ${point.note}`)
+    }
+
+    // 分隔线（最后一项除外）
+    if (i < points.length - 1) {
+      lines.push('')
+    }
+  }
+
+  const text = lines.join('\n')
+
+  navigator.clipboard.writeText(text).then(() => {
+    toast.add({
+      title: '复制成功',
+      description: `已复制 ${points.length} 项流程`,
+      color: 'success'
+    })
+  }).catch(() => {
+    toast.add({
+      title: '复制失败',
+      color: 'error'
+    })
+  })
 }
 
 // 调整单个事项时间
