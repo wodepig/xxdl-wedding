@@ -187,6 +187,16 @@
             >
               导出配置
             </UButton>
+            <UButton
+              v-if="isAdmin"
+              color="info"
+              variant="soft"
+              size="sm"
+              icon="i-lucide-upload"
+              @click="openImportModal"
+            >
+              导入配置
+            </UButton>
           </div>
           <UButton
             variant="ghost"
@@ -207,29 +217,8 @@
               :class="{ 'bg-pink-50/30': index % 2 === 0 }"
             >
               <!-- 时间 -->
-              <div class="flex flex-col items-center gap-1">
-                <div class="text-lg font-bold text-pink-600 min-w-[70px] text-center">
-                  {{ point.time }}
-                </div>
-                <!-- 快捷调整时间按钮 -->
-                <div v-if="isAdmin" class="flex gap-0.5">
-                  <UButton
-                    color="neutral"
-                    variant="ghost"
-                    size="xs"
-                    icon="i-lucide-minus"
-                    class="px-1 min-w-[24px]"
-                    @click="adjustTime(point, -5)"
-                  />
-                  <UButton
-                    color="neutral"
-                    variant="ghost"
-                    size="xs"
-                    icon="i-lucide-plus"
-                    class="px-1 min-w-[24px]"
-                    @click="adjustTime(point, 5)"
-                  />
-                </div>
+              <div class="text-lg font-bold text-pink-600 min-w-[70px] text-center">
+                {{ point.time }}
               </div>
 
               <!-- 事项 -->
@@ -345,6 +334,19 @@
             icon="i-lucide-file-text"
           />
         </UFormField>
+
+        <!-- 同步变动选项 -->
+        <div class="mt-4 pt-4 border-t border-gray-200">
+          <UCheckbox
+            v-model="syncFollowingTime"
+            label="同步调整后续事项时间"
+            description="勾选后，当前事项之后的所有事项时间将同步增加或减少相同分钟数"
+          />
+          <div v-if="syncFollowingTime && editingPoint.originalTime" class="mt-2 text-sm text-amber-600">
+            时间变动：{{ editingPoint.originalTime }} → {{ editTimeHour }}:{{ editTimeMinute }}
+            ({{ calculateTimeDiff(editingPoint.originalTime, `${editTimeHour}:${editTimeMinute}`) }})
+          </div>
+        </div>
       </template>
 
       <template #footer>
@@ -396,6 +398,42 @@
         </div>
       </template>
     </UModal>
+
+    <!-- 导入配置对话框 -->
+    <UModal v-model:open="showImportModal" title="导入配置">
+      <template #body>
+        <p class="text-sm text-gray-600 mb-4">
+          选择JSON配置文件导入，将覆盖当前日期的所有事项
+        </p>
+        <UFormField label="选择文件" class="mb-3">
+          <input
+            ref="importFileInput"
+            type="file"
+            accept=".json"
+            class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100"
+            @change="onImportFileChange"
+          />
+        </UFormField>
+        <div v-if="importPreview.length > 0" class="mt-4">
+          <p class="text-sm font-medium text-gray-700 mb-2">预览 ({{ importPreview.length }} 项):</p>
+          <div class="max-h-40 overflow-y-auto space-y-1 bg-gray-50 rounded-lg p-2">
+            <div v-for="(item, idx) in importPreview.slice(0, 5)" :key="idx" class="text-sm text-gray-600">
+              {{ item.time }} - {{ item.event }}
+            </div>
+            <div v-if="importPreview.length > 5" class="text-sm text-gray-400 italic">
+              ...还有 {{ importPreview.length - 5 }} 项
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton variant="ghost" @click="showImportModal = false">取消</UButton>
+          <UButton color="info" :disabled="importPreview.length === 0" @click="applyImport">确认导入</UButton>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
@@ -425,6 +463,12 @@ interface ApiResponse<T> {
   error?: string
 }
 
+interface ImportItem {
+  time: string
+  event: string
+  note?: string
+}
+
 // 页面元数据
 useHead({
   title: '婚礼时间表'
@@ -438,7 +482,12 @@ const showBatchTimeModal = ref(false)
 const batchTimeAdjust = ref(0)
 const showIntervals = ref(true)
 const showEditModal = ref(false)
-const editingPoint = ref<Partial<TimePoint>>({})
+const editingPoint = ref<Partial<TimePoint> & { originalTime?: string }>({})
+const syncFollowingTime = ref(false)
+const editingPointIndex = ref(-1)
+const showImportModal = ref(false)
+const importPreview = ref<ImportItem[]>([])
+const importFileInput = ref<HTMLInputElement | null>(null)
 
 // Popover 状态
 const deleteDatePopover = ref<Record<string, boolean>>({})
@@ -661,11 +710,31 @@ async function addTimePoint() {
 
 // 编辑时间点
 function editTimePoint(point: TimePoint) {
-  editingPoint.value = { ...point }
+  editingPoint.value = { ...point, originalTime: point.time }
   const [hour, minute] = point.time.split(':')
   editTimeHour.value = hour || ''
   editTimeMinute.value = minute || ''
+  syncFollowingTime.value = false
+
+  // 找到当前编辑项的索引
+  if (currentSchedule.value) {
+    editingPointIndex.value = currentSchedule.value.timePoints.findIndex(p => p.id === point.id)
+  }
+
   showEditModal.value = true
+}
+
+// 计算时间差（分钟）
+function calculateTimeDiff(time1: string, time2: string): string {
+  const [h1, m1] = time1.split(':').map(Number)
+  const [h2, m2] = time2.split(':').map(Number)
+  const minutes1 = (h1 ?? 0) * 60 + (m1 ?? 0)
+  const minutes2 = (h2 ?? 0) * 60 + (m2 ?? 0)
+  const diff = minutes2 - minutes1
+
+  if (diff === 0) return '无变动'
+  if (diff > 0) return `+${diff}分钟`
+  return `${diff}分钟`
 }
 
 // 使用时间到计算器
@@ -699,8 +768,17 @@ async function saveEdit() {
   if (!currentDate.value || !editingPoint.value.id) return
 
   const timeStr = `${editTimeHour.value}:${editTimeMinute.value}`
+  const originalTimeStr = editingPoint.value.originalTime || timeStr
+
+  // 计算时间差
+  const [origHour, origMin] = originalTimeStr.split(':').map(Number)
+  const [newHour, newMin] = timeStr.split(':').map(Number)
+  const origMinutes = (origHour ?? 0) * 60 + (origMin ?? 0)
+  const newMinutes = (newHour ?? 0) * 60 + (newMin ?? 0)
+  const timeDiff = newMinutes - origMinutes
 
   try {
+    // 先更新当前事项
     const response = await $fetch<ApiResponse<WeddingSchedule>>(`/api/schedule/date/${currentDate.value}/timepoint/${editingPoint.value.id}`, {
       method: 'PUT',
       body: {
@@ -710,17 +788,61 @@ async function saveEdit() {
       }
     })
 
-    if (response.success && response.data) {
-      schedules.value = response.data.schedules
-      showEditModal.value = false
+    if (!response.success) {
+      toast.add({
+        title: response.error || '更新失败',
+        color: 'error'
+      })
+      return
+    }
+
+    // 如果勾选了同步变动，更新后续所有事项
+    if (syncFollowingTime.value && timeDiff !== 0 && currentSchedule.value && editingPointIndex.value >= 0) {
+      const followingPoints = currentSchedule.value.timePoints.slice(editingPointIndex.value + 1)
+
+      for (const point of followingPoints) {
+        const [ph, pm] = point.time.split(':').map(Number)
+        const pointMinutes = (ph ?? 0) * 60 + (pm ?? 0) + timeDiff
+
+        // 检查是否在有效范围内
+        if (pointMinutes < 0 || pointMinutes >= 24 * 60) {
+          toast.add({
+            title: '时间超出范围',
+            description: `${point.event} 调整后时间超出 00:00 - 23:59 范围`,
+            color: 'warning'
+          })
+          continue
+        }
+
+        const adjustedHour = Math.floor(pointMinutes / 60)
+        const adjustedMin = pointMinutes % 60
+        const adjustedTimeStr = `${String(adjustedHour).padStart(2, '0')}:${String(adjustedMin).padStart(2, '0')}`
+
+        await $fetch<ApiResponse<WeddingSchedule>>(`/api/schedule/date/${currentDate.value}/timepoint/${point.id}`, {
+          method: 'PUT',
+          body: {
+            ...point,
+            time: adjustedTimeStr,
+            url: ossUrl.value
+          }
+        })
+      }
+    }
+
+    // 重新加载数据
+    await loadData()
+    showEditModal.value = false
+
+    if (syncFollowingTime.value && timeDiff !== 0) {
       toast.add({
         title: '更新成功',
+        description: `已同步调整后续事项时间`,
         color: 'success'
       })
     } else {
       toast.add({
-        title: response.error || '更新失败',
-        color: 'error'
+        title: '更新成功',
+        color: 'success'
       })
     }
   } catch (error) {
@@ -962,6 +1084,148 @@ function exportSchedule() {
     description: `已导出 ${currentSchedule.value.timePoints.length} 个事项`,
     color: 'success'
   })
+}
+
+// 打开导入对话框
+function openImportModal() {
+  importPreview.value = []
+  if (importFileInput.value) {
+    importFileInput.value.value = ''
+  }
+  showImportModal.value = true
+}
+
+// 处理导入文件选择
+function onImportFileChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+
+  if (!file) {
+    importPreview.value = []
+    return
+  }
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    try {
+      const content = e.target?.result as string
+      const data = JSON.parse(content)
+
+      // 验证数据结构
+      if (data.timePoints && Array.isArray(data.timePoints)) {
+        // 验证每个事项的时间格式
+        const validItems: ImportItem[] = []
+        for (const item of data.timePoints) {
+          if (item.time && item.event && /^\d{2}:\d{2}$/.test(item.time)) {
+            validItems.push({
+              time: item.time,
+              event: item.event,
+              note: item.note || ''
+            })
+          }
+        }
+
+        if (validItems.length === 0) {
+          toast.add({
+            title: '文件格式错误',
+            description: '未找到有效的事项数据',
+            color: 'error'
+          })
+          importPreview.value = []
+          return
+        }
+
+        // 按时间排序
+        validItems.sort((a, b) => a.time.localeCompare(b.time))
+        importPreview.value = validItems
+
+        toast.add({
+          title: '文件读取成功',
+          description: `找到 ${validItems.length} 个有效事项`,
+          color: 'success'
+        })
+      } else {
+        toast.add({
+          title: '文件格式错误',
+          description: 'JSON文件缺少 timePoints 数组',
+          color: 'error'
+        })
+        importPreview.value = []
+      }
+    } catch (error) {
+      toast.add({
+        title: '文件解析失败',
+        description: '请确保上传的是有效的JSON文件',
+        color: 'error'
+      })
+      importPreview.value = []
+    }
+  }
+  reader.readAsText(file)
+}
+
+// 应用导入
+async function applyImport() {
+  if (!currentDate.value || importPreview.value.length === 0) return
+
+  // 先删除当前日期的所有事项
+  const currentPoints = currentSchedule.value?.timePoints || []
+
+  // 删除现有事项
+  for (const point of currentPoints) {
+    try {
+      await $fetch<ApiResponse<WeddingSchedule>>(`/api/schedule/date/${currentDate.value}/timepoint/${point.id}`, {
+        method: 'DELETE',
+        query: ossUrl.value ? { url: ossUrl.value } : undefined
+      })
+    } catch (error) {
+      console.error(`删除 ${point.event} 失败:`, error)
+    }
+  }
+
+  // 添加新的事项
+  let successCount = 0
+  for (const item of importPreview.value) {
+    try {
+      const response = await $fetch<ApiResponse<WeddingSchedule>>(`/api/schedule/date/${currentDate.value}/timepoint`, {
+        method: 'POST',
+        body: {
+          time: item.time,
+          event: item.event,
+          note: item.note,
+          url: ossUrl.value
+        }
+      })
+
+      if (response.success) {
+        successCount++
+      }
+    } catch (error) {
+      console.error(`添加 ${item.event} 失败:`, error)
+    }
+  }
+
+  // 重新加载数据
+  await loadData()
+  showImportModal.value = false
+  importPreview.value = []
+  if (importFileInput.value) {
+    importFileInput.value.value = ''
+  }
+
+  if (successCount === importPreview.value.length) {
+    toast.add({
+      title: '导入成功',
+      description: `成功导入 ${successCount} 个事项`,
+      color: 'success'
+    })
+  } else {
+    toast.add({
+      title: '部分导入成功',
+      description: `成功 ${successCount}/${importPreview.value.length} 个`,
+      color: 'warning'
+    })
+  }
 }
 
 // 初始化
